@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Core models ──────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alerts    Alert[]
+  savedJobs SavedJob[]
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  website     String?
+  linkedin    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  signals GrowthSignal[]
+  jobs    Job[]
+}
+
+model GrowthSignal {
+  id          String   @id @default(cuid())
+  companyId   String
+  type        String   // e.g. "funding", "hiring_surge", "expansion"
+  title       String
+  description String?
+  detectedAt  DateTime @default(now())
+  source      String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([detectedAt])
+}
+
+model Job {
+  id        String    @id @default(cuid())
+  companyId String
+  title     String
+  location  String?
+  remote    Boolean   @default(false)
+  url       String?
+  postedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  savedJobs SavedJob[]
+
+  @@index([companyId])
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  job  Job  @relation(fields: [jobId], references: [id])
+
+  @@unique([userId, jobId])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  filters   Json
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

@@ -1,3 +1,9 @@
+# Prisma generated client
+generated/
+
+# Docker volumes (local only)
+.docker/
+
 # Logs
 logs
 *.log
