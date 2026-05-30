@@ -10,48 +10,33 @@ import {
 } from 'recharts';
 import type { GithubActivity } from '../lib/api';
 
-interface Props {
-  github: GithubActivity;
-}
+interface Props { github: GithubActivity; }
 
-interface TooltipPayload {
-  value: number;
-}
+interface TooltipPayload { value: number; }
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: TooltipPayload[];
-  label?: string;
+const CustomTooltip = ({ active, payload, label }: {
+  active?: boolean; payload?: TooltipPayload[]; label?: string;
 }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        background: '#1e293b',
-        border: '1px solid rgba(59,130,246,0.3)',
-        borderRadius: '10px',
-        padding: '12px 16px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }}
-    >
-      <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>
-        {label}
-      </p>
-      <p style={{ color: '#3b82f6', fontSize: '22px', fontWeight: 700 }}>
+    <div style={{
+      background: '#ffffff',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
+      padding: '10px 14px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    }}>
+      <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '3px' }}>{label}</p>
+      <p style={{ color: '#2563eb', fontSize: '20px', fontWeight: 700 }}>
         {payload[0].value.toLocaleString()}
-        <span style={{ fontSize: '13px', color: '#64748b', marginLeft: '4px' }}>
-          commits
-        </span>
+        <span style={{ fontSize: '12px', color: '#94a3b8', marginLeft: '4px' }}>commits</span>
       </p>
     </div>
   );
 };
 
-const BARS = ['#2563eb', '#3b82f6', '#60a5fa'];
+// Progressively lighter blue shades for 30d → 60d → 90d
+const BAR_COLORS = ['#2563eb', '#3b82f6', '#93c5fd'];
 
 export default function GitHubChart({ github }: Props) {
   const data = [
@@ -61,35 +46,17 @@ export default function GitHubChart({ github }: Props) {
   ];
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-        <defs>
-          {BARS.map((color, i) => (
-            <linearGradient key={i} id={`barGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor={color} stopOpacity={1} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.6} />
-            </linearGradient>
-          ))}
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-        <XAxis
-          dataKey="period"
-          stroke="#334155"
-          tick={{ fill: '#64748b', fontSize: 12 }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          stroke="#334155"
-          tick={{ fill: '#64748b', fontSize: 12 }}
-          axisLine={false}
-          tickLine={false}
-          width={45}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
-        <Bar dataKey="commits" radius={[6, 6, 0, 0]} maxBarSize={80}>
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <XAxis dataKey="period" stroke="#e2e8f0"
+          tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+        <YAxis stroke="#e2e8f0"
+          tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8faff' }} />
+        <Bar dataKey="commits" radius={[5, 5, 0, 0]} maxBarSize={72}>
           {data.map((_, i) => (
-            <Cell key={i} fill={`url(#barGrad${i})`} />
+            <Cell key={i} fill={BAR_COLORS[i]} />
           ))}
         </Bar>
       </BarChart>

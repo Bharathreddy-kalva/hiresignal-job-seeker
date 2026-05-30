@@ -1,68 +1,63 @@
-import { Briefcase, GitBranch, Newspaper, Search, Zap } from 'lucide-react';
+import { Activity, Database, Search, Sparkles } from 'lucide-react';
+import { GitBranch, Briefcase, Newspaper } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// ── constants ─────────────────────────────────────────────────────────────────
+// ── design tokens ─────────────────────────────────────────────────────────────
+const BLUE   = '#2563eb';
+const TEXT   = '#0f172a';
+const MUTED  = '#64748b';
+const SUBTLE = '#94a3b8';
+const BORDER = '1px solid #e2e8f0';
+const CARD: React.CSSProperties = {
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+};
+
+// ── data ──────────────────────────────────────────────────────────────────────
+const STATS = [
+  { icon: Database,  label: '3 Data Sources',      desc: 'GitHub · Adzuna · NewsAPI' },
+  { icon: Activity,  label: 'Real-time Scoring',   desc: 'Weighted 0–100 HireSignal score' },
+  { icon: Sparkles,  label: 'AI-Powered Insights', desc: 'Groq llama summary per company' },
+] as const;
 
 const FEATURES = [
   {
     icon: GitBranch,
-    title: 'GitHub Intelligence',
-    description:
-      "Track real commit velocity and engineering activity across any company's open-source repositories over 30, 60 and 90-day windows.",
-    accent: '#3b82f6',
+    title: 'GitHub Activity',
+    desc: "Commit velocity across a company's public repositories tracked over 30, 60, and 90-day windows.",
+    accent: BLUE,
   },
   {
     icon: Briefcase,
     title: 'Job Market Signals',
-    description:
-      'Monitor active job posting counts and hiring velocity from thousands of job boards in real-time to spot growth before it hits the news.',
+    desc: "Active posting counts from Adzuna. A surge in hiring often precedes growth that hasn't hit the news yet.",
     accent: '#10b981',
   },
   {
     icon: Newspaper,
-    title: 'News Intelligence',
-    description:
-      'Surface the five most recent news articles mentioning the company to gauge market momentum, press presence and public sentiment.',
-    accent: '#a78bfa',
+    title: 'News Coverage',
+    desc: 'The 5 most recent articles mentioning the company — press presence is a reliable proxy for momentum.',
+    accent: '#7c3aed',
   },
 ] as const;
 
-const STEPS = [
-  {
-    num: '01',
-    title: 'Search',
-    description: 'Type any company name to kick off a live multi-source analysis.',
-  },
-  {
-    num: '02',
-    title: 'Analyze',
-    description:
-      'We pull live signals from GitHub, Adzuna job boards, and NewsAPI simultaneously.',
-  },
-  {
-    num: '03',
-    title: 'Decide',
-    description:
-      'Get a 0–100 HireSignal Score plus a Groq-powered AI summary to guide your application.',
-  },
-] as const;
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-const glass: React.CSSProperties = {
-  background: 'rgba(30,41,59,0.55)',
-  backdropFilter: 'blur(18px)',
-  WebkitBackdropFilter: 'blur(18px)',
-  border: '1px solid rgba(148,163,184,0.1)',
-  borderRadius: '16px',
+// Mock preview data shown in the hero right column
+const MOCK = {
+  company: 'Stripe',
+  score: 82,
+  bars: [
+    { label: 'GitHub', value: 74, color: BLUE },
+    { label: 'Jobs',   value: 90, color: '#10b981' },
+    { label: 'News',   value: 80, color: '#7c3aed' },
+  ],
 };
 
 // ── component ─────────────────────────────────────────────────────────────────
-
 export default function LandingPage() {
   const [query, setQuery] = useState('');
-  const [hovered, setHovered] = useState<number | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,401 +66,225 @@ export default function LandingPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', overflowX: 'hidden' }}>
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section
-        className="hero-gradient"
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '80px 24px 60px',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Ambient orbs */}
-        {[
-          { top: '15%', left: '10%', color: 'rgba(59,130,246,0.18)', size: 500 },
-          { top: '60%', right: '8%', color: 'rgba(16,185,129,0.14)', size: 420, left: undefined },
-          { top: '40%', left: '55%', color: 'rgba(167,139,250,0.1)', size: 360 },
-        ].map((orb, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              width: orb.size,
-              height: orb.size,
-              top: orb.top,
-              left: orb.left,
-              right: (orb as { right?: string }).right,
-              borderRadius: '50%',
-              background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
-              filter: 'blur(40px)',
-              pointerEvents: 'none',
-            }}
-          />
-        ))}
+    <div className="dot-grid" style={{ minHeight: '100vh' }}>
 
-        {/* Content */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            textAlign: 'center',
-            maxWidth: '780px',
-            width: '100%',
-          }}
-        >
-          {/* Badge */}
-          <div
-            className="animate-fade-in-up"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 16px',
-              borderRadius: '100px',
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.3)',
-              marginBottom: '28px',
-            }}
-          >
-            <Zap size={14} color="#3b82f6" />
-            <span style={{ color: '#3b82f6', fontSize: '13px', fontWeight: 600 }}>
-              HireSignal — Real-Time Company Intelligence
-            </span>
+      {/* ── Navbar ──────────────────────────────────────────────────────── */}
+      <nav style={{ background: '#ffffff', borderBottom: BORDER, position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '0 32px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: BLUE, fontWeight: 800, fontSize: '18px', letterSpacing: '-0.02em' }}>HS.</span>
+            <span style={{ color: SUBTLE, fontSize: '13px' }}>HireSignal</span>
+          </div>
+          <span style={{ color: SUBTLE, fontSize: '13px' }}>company growth intelligence</span>
+        </div>
+      </nav>
+
+      {/* ── Hero ────────────────────────────────────────────────────────── */}
+      <section style={{ borderBottom: BORDER, background: '#ffffff' }}>
+        <div style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '72px 32px 64px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '64px',
+          flexWrap: 'wrap',
+        }}>
+          {/* Left — text + search */}
+          <div style={{ flex: 1, minWidth: '300px', maxWidth: '560px' }}>
+            <p className="animate-fade-in-up" style={{ color: BLUE, fontSize: '12px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '18px' }}>
+              Real-time · GitHub · Jobs · News
+            </p>
+
+            <h1 className="animate-fade-in-up delay-100" style={{
+              fontSize: 'clamp(2rem, 4.5vw, 3.2rem)',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: '-0.025em',
+              marginBottom: '16px',
+            }}>
+              <span style={{ color: TEXT }}>Stop applying blindly.</span>
+              <br />
+              <span style={{ color: BLUE }}>Know which companies are actually growing.</span>
+            </h1>
+
+            <p className="animate-fade-in-up delay-200" style={{ color: MUTED, fontSize: '16px', lineHeight: 1.7, maxWidth: '460px', marginBottom: '32px' }}>
+              HireSignal pulls live signals from GitHub, job boards, and news — then scores each company so you know exactly when to apply.
+            </p>
+
+            {/* Search form */}
+            <form onSubmit={handleSubmit} className="animate-fade-in-up delay-300" style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', maxWidth: '520px' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={15} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: SUBTLE, pointerEvents: 'none' }} />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Company name — e.g. Stripe, OpenAI"
+                    style={{
+                      width: '100%',
+                      paddingLeft: '40px',
+                      paddingRight: '16px',
+                      paddingTop: '12px',
+                      paddingBottom: '12px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      color: TEXT,
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
+                    onFocus={e => { e.target.style.borderColor = BLUE; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!query.trim()}
+                  style={{
+                    padding: '12px 20px',
+                    background: query.trim() ? BLUE : '#f1f5f9',
+                    color: query.trim() ? '#ffffff' : SUBTLE,
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: query.trim() ? 'pointer' : 'not-allowed',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (query.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#1d4ed8'; }}
+                  onMouseLeave={e => { if (query.trim()) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
+                >
+                  Analyze →
+                </button>
+              </div>
+            </form>
+            <p style={{ color: '#cbd5e1', fontSize: '12px' }}>Try: Stripe · OpenAI · Airbnb · Shopify</p>
           </div>
 
-          {/* Headline */}
-          <h1
-            className="animate-fade-in-up delay-100"
-            style={{
-              fontSize: 'clamp(2.4rem, 6vw, 4.5rem)',
-              fontWeight: 800,
-              lineHeight: 1.08,
-              letterSpacing: '-0.025em',
-              color: 'white',
-              marginBottom: '24px',
-            }}
-          >
-            Know Which Companies
-            <br />
-            <span
-              style={{
-                backgroundImage: 'linear-gradient(135deg, #3b82f6 0%, #10b981 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Are Worth Applying To
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p
-            className="animate-fade-in-up delay-200"
-            style={{
-              fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
-              color: '#94a3b8',
-              lineHeight: 1.75,
-              maxWidth: '560px',
-              margin: '0 auto 40px',
-            }}
-          >
-            Real-time signals from GitHub, job boards &amp; news — combined into one{' '}
-            <strong style={{ color: '#cbd5e1' }}>HireSignal Score</strong>
-          </p>
-
-          {/* Search bar */}
-          <form
-            onSubmit={handleSubmit}
-            className="animate-fade-in-up delay-300"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              maxWidth: '560px',
-              margin: '0 auto',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', flex: '1', minWidth: '220px' }}>
-                <Search
-                  size={18}
-                  style={{
-                    position: 'absolute',
-                    left: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#475569',
-                    pointerEvents: 'none',
-                  }}
-                />
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Enter company name (e.g. Stripe)"
-                  style={{
-                    width: '100%',
-                    paddingLeft: '48px',
-                    paddingRight: '16px',
-                    paddingTop: '15px',
-                    paddingBottom: '15px',
-                    background: 'rgba(30,41,59,0.9)',
-                    border: '1px solid rgba(148,163,184,0.15)',
-                    borderRadius: '12px',
-                    color: 'white',
-                    fontSize: '15px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
-                  }}
-                  onFocus={e => {
-                    e.target.style.borderColor = '#3b82f6';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)';
-                  }}
-                  onBlur={e => {
-                    e.target.style.borderColor = 'rgba(148,163,184,0.15)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                />
+          {/* Right — product preview card */}
+          <div className="animate-fade-in-up delay-400" style={{ ...CARD, padding: '24px', minWidth: '260px', maxWidth: '320px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div>
+                <p style={{ color: SUBTLE, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Sample Analysis</p>
+                <p style={{ color: TEXT, fontWeight: 700, fontSize: '18px' }}>{MOCK.company}</p>
               </div>
-              <button
-                type="submit"
-                disabled={!query.trim()}
-                style={{
-                  padding: '15px 28px',
-                  background: query.trim()
-                    ? 'linear-gradient(135deg, #3b82f6, #2563eb)'
-                    : 'rgba(30,41,59,0.6)',
-                  color: query.trim() ? 'white' : '#475569',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: query.trim() ? 'pointer' : 'not-allowed',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.2s',
-                  boxShadow: query.trim() ? '0 4px 16px rgba(59,130,246,0.35)' : 'none',
-                }}
-                onMouseEnter={e => {
-                  if (query.trim()) {
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                      '0 8px 24px rgba(59,130,246,0.45)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = query.trim()
-                    ? '0 4px 16px rgba(59,130,246,0.35)'
-                    : 'none';
-                }}
-              >
-                Analyze Company →
-              </button>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: BLUE, fontWeight: 800, fontSize: '32px', lineHeight: 1 }}>{MOCK.score}</p>
+                <p style={{ color: SUBTLE, fontSize: '11px' }}>/100</p>
+              </div>
             </div>
-            <p style={{ color: '#475569', fontSize: '13px' }}>
-              Try: Stripe, OpenAI, Airbnb, Shopify
-            </p>
-          </form>
-        </div>
 
-        {/* Feature cards */}
-        <div
-          className="animate-fade-in-up delay-400"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '20px',
-            maxWidth: '980px',
-            width: '100%',
-            marginTop: '72px',
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          {FEATURES.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <div
-                key={f.title}
-                onMouseEnter={() => setHovered(i)}
-                onMouseLeave={() => setHovered(null)}
-                style={{
-                  ...glass,
-                  padding: '28px',
-                  transition: 'transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease',
-                  transform: hovered === i ? 'translateY(-6px)' : 'translateY(0)',
-                  borderColor:
-                    hovered === i ? `${f.accent}35` : 'rgba(148,163,184,0.1)',
-                  boxShadow:
-                    hovered === i ? `0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px ${f.accent}20` : 'none',
-                }}
-              >
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: `${f.accent}18`,
-                    border: `1px solid ${f.accent}30`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '18px',
-                  }}
-                >
-                  <Icon size={22} color={f.accent} />
+            {MOCK.bars.map(bar => (
+              <div key={bar.label} style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ color: MUTED, fontSize: '12px' }}>{bar.label}</span>
+                  <span style={{ color: TEXT, fontSize: '12px', fontWeight: 600 }}>{bar.value}</span>
                 </div>
-                <h3
-                  style={{
-                    color: 'white',
-                    fontWeight: 700,
-                    fontSize: '17px',
-                    marginBottom: '10px',
-                  }}
-                >
-                  {f.title}
-                </h3>
-                <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65 }}>
-                  {f.description}
-                </p>
+                <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ height: '5px', width: `${bar.value}%`, background: bar.color, borderRadius: '3px', transition: 'width 1s ease' }} />
+                </div>
+              </div>
+            ))}
+
+            <div style={{ marginTop: '16px', padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
+              <p style={{ color: '#16a34a', fontSize: '13px', fontWeight: 600 }}>🚀 Strong Apply Signal</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stats ───────────────────────────────────────────────────────── */}
+      <section style={{ background: '#ffffff', borderBottom: BORDER }}>
+        <div style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '0 32px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        }}>
+          {STATS.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} style={{
+                padding: '28px 24px',
+                borderRight: i < STATS.length - 1 ? BORDER : 'none',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '14px',
+              }}>
+                <div style={{ marginTop: '2px', flexShrink: 0,
+                  width: '34px', height: '34px', borderRadius: '8px',
+                  background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={16} color={BLUE} />
+                </div>
+                <div>
+                  <p style={{ color: TEXT, fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{s.label}</p>
+                  <p style={{ color: SUBTLE, fontSize: '12px' }}>{s.desc}</p>
+                </div>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* ── How it works ──────────────────────────────────────────────────── */}
-      <section
-        style={{
-          padding: '100px 24px',
-          borderTop: '1px solid rgba(148,163,184,0.07)',
-        }}
-      >
-        <div style={{ maxWidth: '880px', margin: '0 auto', textAlign: 'center' }}>
-          <p
-            style={{
-              color: '#3b82f6',
-              fontSize: '13px',
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: '14px',
-            }}
-          >
-            How It Works
-          </p>
-          <h2
-            style={{
-              color: 'white',
-              fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              marginBottom: '64px',
-            }}
-          >
-            Three steps to smarter job hunting
+      {/* ── Feature cards ───────────────────────────────────────────────── */}
+      <section style={{ borderBottom: BORDER }}>
+        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '56px 32px' }}>
+          <p style={{ color: MUTED, fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>What we track</p>
+          <h2 style={{ color: TEXT, fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.015em', marginBottom: '24px' }}>
+            Three signals. One score.
           </h2>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '32px',
-            }}
-          >
-            {STEPS.map((step, i) => (
-              <div key={step.num} style={{ position: 'relative' }}>
-                {i < STEPS.length - 1 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '27px',
-                      left: '60%',
-                      width: '80%',
-                      height: '1px',
-                      background:
-                        'linear-gradient(90deg, rgba(59,130,246,0.4), transparent)',
-                      display: window.innerWidth < 640 ? 'none' : 'block',
-                    }}
-                  />
-                )}
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  <div
-                    style={{
-                      width: '54px',
-                      height: '54px',
-                      borderRadius: '50%',
-                      background:
-                        'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(59,130,246,0.05))',
-                      border: '1px solid rgba(59,130,246,0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto 20px',
-                      color: '#3b82f6',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                    }}
-                  >
-                    {step.num}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+            {FEATURES.map(f => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  style={{
+                    ...CARD,
+                    padding: '22px 24px',
+                    borderLeft: `3px solid ${f.accent}`,
+                    borderRadius: '12px',
+                    transition: 'box-shadow 0.15s, transform 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <Icon size={17} color={f.accent} />
+                    <h3 style={{ color: TEXT, fontWeight: 700, fontSize: '15px' }}>{f.title}</h3>
                   </div>
-                  <h3
-                    style={{
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '19px',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    {step.title}
-                  </h3>
-                  <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: 1.65 }}>
-                    {step.description}
-                  </p>
+                  <p style={{ color: MUTED, fontSize: '13px', lineHeight: 1.65 }}>{f.desc}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer
-        style={{
-          padding: '36px 24px',
-          borderTop: '1px solid rgba(148,163,184,0.07)',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '8px',
-          }}
-        >
-          <Zap size={16} color="#3b82f6" />
-          <span style={{ color: 'white', fontWeight: 700, fontSize: '15px' }}>
-            HireSignal
-          </span>
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <footer style={{ background: '#ffffff', borderTop: BORDER }}>
+        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: BLUE, fontWeight: 800, fontSize: '15px' }}>HS.</span>
+            <span style={{ color: SUBTLE, fontSize: '13px' }}>HireSignal</span>
+          </div>
+          <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', color: SUBTLE, fontSize: '13px' }}>
+            Built by Bharath Reddy Kalva
+          </em>
         </div>
-        <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
-          Real-time company growth intelligence for job seekers
-          <br />
-          Built by{' '}
-          <span style={{ color: '#64748b', fontWeight: 500 }}>
-            Bharath Reddy Kalva
-          </span>
-        </p>
       </footer>
+
     </div>
   );
 }

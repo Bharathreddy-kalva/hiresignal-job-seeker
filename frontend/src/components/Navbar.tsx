@@ -1,4 +1,4 @@
-import { ArrowLeft, Zap } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -7,36 +7,37 @@ interface Props {
 }
 
 function scoreColor(s: number) {
-  if (s >= 71) return '#10b981';
-  if (s >= 41) return '#f59e0b';
-  return '#ef4444';
+  if (s >= 71) return '#16a34a';
+  if (s >= 41) return '#d97706';
+  return '#dc2626';
+}
+
+function scoreBg(s: number) {
+  if (s >= 71) return '#f0fdf4';
+  if (s >= 41) return '#fffbeb';
+  return '#fef2f2';
 }
 
 export default function Navbar({ companyName, score }: Props) {
   const navigate = useNavigate();
   return (
-    <header
-      style={{
-        background: 'rgba(15,23,42,0.85)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(148,163,184,0.08)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '0 24px',
-          height: '64px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        {/* Logo */}
+    <header style={{
+      background: '#ffffff',
+      borderBottom: '1px solid #e2e8f0',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+    }}>
+      <div style={{
+        maxWidth: '1120px',
+        margin: '0 auto',
+        padding: '0 32px',
+        height: '56px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        {/* Logo / back */}
         <button
           onClick={() => navigate('/')}
           style={{
@@ -46,67 +47,41 @@ export default function Navbar({ companyName, score }: Props) {
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            padding: '6px 10px',
+            padding: '6px 8px',
             borderRadius: '8px',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              'rgba(59,130,246,0.08)')
-          }
-          onMouseLeave={e =>
-            ((e.currentTarget as HTMLButtonElement).style.background = 'none')
-          }
+          onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.background = '#f1f5f9')}
+          onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.background = 'none')}
         >
-          <ArrowLeft size={16} color="#64748b" />
-          <Zap size={18} color="#3b82f6" />
-          <span
-            style={{ color: 'white', fontWeight: 700, fontSize: '16px' }}
-          >
-            HireSignal
-          </span>
+          <ArrowLeft size={15} color="#94a3b8" />
+          <span style={{ color: '#2563eb', fontWeight: 800, fontSize: '16px', letterSpacing: '-0.02em' }}>HS.</span>
         </button>
 
-        {/* Company */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span
-            style={{
-              color: '#94a3b8',
-              fontSize: '14px',
-              fontWeight: 500,
-              maxWidth: '200px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Analyzing:
-          </span>
-          <span
-            style={{
-              color: 'white',
-              fontWeight: 700,
-              fontSize: '15px',
-              maxWidth: '220px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+        {/* Company + score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: '#94a3b8', fontSize: '13px' }}>Analyzing:</span>
+          <span style={{
+            color: '#0f172a',
+            fontWeight: 600,
+            fontSize: '14px',
+            maxWidth: '200px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
             {companyName}
           </span>
           {score !== undefined && (
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: '20px',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: scoreColor(score),
-                background: `${scoreColor(score)}18`,
-                border: `1px solid ${scoreColor(score)}40`,
-              }}
-            >
+            <span style={{
+              padding: '3px 10px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: scoreColor(score),
+              background: scoreBg(score),
+              border: `1px solid ${scoreColor(score)}30`,
+            }}>
               {score}/100
             </span>
           )}
