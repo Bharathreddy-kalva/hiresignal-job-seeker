@@ -8,7 +8,16 @@
       "Bash(npx @nestjs/cli@latest new backend --package-manager npm --skip-git --strict)",
       "Bash(npx prisma *)",
       "Bash(npm run *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(docker exec hiresignal-postgres *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/hiresignal\" npx prisma *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/hiresignal?sslmode=disable\" npx prisma *)",
+      "Bash(docker exec *)",
+      "Bash(docker compose *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

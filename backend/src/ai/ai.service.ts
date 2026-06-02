@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import type { SignalData } from '../common/types';
+import type { HireSignalResult, SignalData } from '../common/types';
 
 @Injectable()
 export class AiService {
@@ -56,6 +56,54 @@ export class AiService {
         `Groq API failed: ${err instanceof Error ? err.message : String(err)}`,
       );
       return 'AI summary could not be generated at this time.';
+    }
+  }
+
+  async generateComparison(companies: HireSignalResult[]): Promise<string> {
+    const lines = companies
+      .map(
+        (c, i) =>
+          `${i + 1}. ${c.company.name}: score ${c.score}/100 ` +
+          `(GitHub ${c.scoreBreakdown.github}, Jobs ${c.scoreBreakdown.jobs}, News ${c.scoreBreakdown.news}) — ` +
+          `${c.github.commits30d} commits/30d, ${c.jobs.jobs30d} job postings/30d, ` +
+          `${c.news.length} recent news articles`,
+      )
+      .join('\n');
+
+    const prompt =
+      `Compare these companies for a job seeker and recommend which one to prioritize applying to and why:\n\n` +
+      lines +
+      `\n\nIn 3-4 sentences, compare these companies and recommend which to prioritize.`;
+
+    try {
+      const response = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a concise job market analyst. Reply in 3-4 sentences only.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 200,
+          temperature: 0.7,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.configService.get('GROQ_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data.choices[0].message.content as string;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error('[AiService] Groq comparison error:', err.response?.data);
+      }
+      this.logger.warn(`Groq comparison failed: ${err instanceof Error ? err.message : String(err)}`);
+      return 'AI comparison could not be generated at this time.';
     }
   }
 }

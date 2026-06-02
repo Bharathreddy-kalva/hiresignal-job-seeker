@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import { UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -37,9 +38,9 @@ export default function Navbar({ companyName, score }: Props) {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        {/* Logo / back */}
+        {/* Logo / back to dashboard */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -58,14 +59,14 @@ export default function Navbar({ companyName, score }: Props) {
           <span style={{ color: '#2563eb', fontWeight: 800, fontSize: '16px', letterSpacing: '-0.02em' }}>HS.</span>
         </button>
 
-        {/* Company + score */}
+        {/* Center — company + score */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ color: '#94a3b8', fontSize: '13px' }}>Analyzing:</span>
           <span style={{
             color: '#0f172a',
             fontWeight: 600,
             fontSize: '14px',
-            maxWidth: '200px',
+            maxWidth: '180px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -86,6 +87,9 @@ export default function Navbar({ companyName, score }: Props) {
             </span>
           )}
         </div>
+
+        {/* Right — user avatar */}
+        <UserButton afterSignOutUrl="/" />
       </div>
     </header>
   );

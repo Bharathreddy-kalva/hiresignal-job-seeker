@@ -38,4 +38,5 @@ export interface HireSignalResult {
   score: number;
   scoreBreakdown: ScoreBreakdown;
   summary: string;
+  relevanceNote?: string; // present when resume skills filtered the results
 }

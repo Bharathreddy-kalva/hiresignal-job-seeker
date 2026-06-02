@@ -1,21 +1,21 @@
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowUpRight,
-  Briefcase,
-  GitBranch,
-  Newspaper,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { saveSearch } from '../lib/searchHistory';
 import GitHubChart from '../components/GitHubChart';
 import JobsChart from '../components/JobsChart';
 import Navbar from '../components/Navbar';
 import ScoreGauge from '../components/ScoreGauge';
 import SkeletonDashboard from '../components/SkeletonDashboard';
-import type { CompanyAnalysis } from '../lib/api';
-import { analyzeCompany } from '../lib/api';
+import ScoreHistoryChart from '../components/ScoreHistoryChart';
+import type { CompanyAnalysis, FitScoreResult, ScoreHistoryEntry } from '../lib/api';
+import { analyzeCompany, getCompanyHistory, getFitScore, addToWatchlist } from '../lib/api';
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 const TEXT   = '#0f172a';
@@ -23,6 +23,7 @@ const MUTED  = '#64748b';
 const SUBTLE = '#94a3b8';
 const BLUE   = '#2563eb';
 const BORDER = '1px solid #e2e8f0';
+const MONO   = '"ui-monospace","SFMono-Regular","Menlo","Consolas",monospace';
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
@@ -37,6 +38,11 @@ function scoreColor(s: number) {
   return '#dc2626';
 }
 
+function capitalize(s: string) {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -47,19 +53,18 @@ function formatDate(iso: string) {
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
-function ScoreCard({ icon: Icon, label, score, metric, accent }: {
-  icon: React.ElementType; label: string; score: number; metric: string; accent: string;
+function ScoreCard({ label, score, metric, accent }: {
+  label: string; score: number; metric: string; accent: string;
 }) {
   return (
     <div style={{ ...CARD, borderTop: `2px solid ${accent}`, padding: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '12px' }}>
-        <Icon size={14} color={accent} />
-        <p style={{ color: SUBTLE, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
-      </div>
-      <p style={{ color: accent, fontSize: '30px', fontWeight: 800, lineHeight: 1, marginBottom: '4px' }}>
+      <p style={{ color: SUBTLE, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+        {label}
+      </p>
+      <p style={{ color: accent, fontSize: '30px', fontWeight: 800, lineHeight: 1, marginBottom: '8px' }}>
         {score}<span style={{ color: '#cbd5e1', fontSize: '15px', fontWeight: 500 }}>/100</span>
       </p>
-      <p style={{ color: SUBTLE, fontSize: '12px' }}>{metric}</p>
+      <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '11px', letterSpacing: '-0.01em' }}>{metric}</p>
     </div>
   );
 }
@@ -67,14 +72,19 @@ function ScoreCard({ icon: Icon, label, score, metric, accent }: {
 function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div style={{ ...CARD, padding: '22px' }}>
-      <p style={{ color: TEXT, fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>{title}</p>
+      <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '6px' }}>
+        {title.toUpperCase()}
+      </p>
       <p style={{ color: SUBTLE, fontSize: '12px', marginBottom: '18px' }}>{subtitle}</p>
       {children}
     </div>
   );
 }
 
-function NewsRow({ article }: { article: { title: string; source: string; publishedAt: string; url: string } }) {
+function NewsRow({ article, index }: {
+  article: { title: string; source: string; publishedAt: string; url: string };
+  index: number;
+}) {
   const [hovered, setHovered] = useState(false);
   return (
     <a
@@ -97,6 +107,9 @@ function NewsRow({ article }: { article: { title: string; source: string; publis
         boxShadow: hovered ? '0 2px 8px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
+      <span style={{ fontFamily: MONO, fontSize: '11px', color: SUBTLE, flexShrink: 0, minWidth: '20px' }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
           color: hovered ? TEXT : '#1e293b',
@@ -110,9 +123,9 @@ function NewsRow({ article }: { article: { title: string; source: string; publis
           {article.title}
         </p>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ color: BLUE, fontSize: '11px', fontWeight: 600 }}>{article.source}</span>
+          <span style={{ fontFamily: MONO, color: BLUE, fontSize: '10px', fontWeight: 600, letterSpacing: '-0.01em' }}>{article.source}</span>
           <span style={{ color: '#e2e8f0' }}>·</span>
-          <span style={{ color: SUBTLE, fontSize: '11px' }}>{formatDate(article.publishedAt)}</span>
+          <span style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px' }}>{formatDate(article.publishedAt)}</span>
         </div>
       </div>
       <ArrowUpRight size={15} color={hovered ? BLUE : '#cbd5e1'} style={{ flexShrink: 0, transition: 'color 0.12s' }} />
@@ -120,32 +133,60 @@ function NewsRow({ article }: { article: { title: string; source: string; publis
   );
 }
 
+// Mini SVG ring gauge for the verdict bar
+function MiniGauge({ score, color }: { score: number; color: string }) {
+  const R = 16;
+  const CIRC = 2 * Math.PI * R;
+  const TRACK = CIRC * 0.75;
+  const GAP   = CIRC - TRACK;
+  const arc   = TRACK * (score / 100);
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" style={{ flexShrink: 0 }}>
+      <circle cx="22" cy="22" r={R} fill="none"
+        stroke="#e2e8f0" strokeWidth="3"
+        strokeDasharray={`${TRACK} ${GAP}`}
+        transform="rotate(135 22 22)" />
+      <circle cx="22" cy="22" r={R} fill="none"
+        stroke={color} strokeWidth="3"
+        strokeDasharray={`${arc} ${CIRC}`}
+        strokeLinecap="round"
+        transform="rotate(135 22 22)"
+        style={{ transition: 'stroke-dasharray 1s ease' }} />
+    </svg>
+  );
+}
+
 function VerdictBar({ score }: { score: number }) {
   const cfg =
     score >= 71
-      ? { emoji: '🚀', label: 'Strong Apply Signal', message: 'Engineering momentum and hiring activity are both high. This is a good window to apply.', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
+      ? { label: 'Strong Apply Signal', message: 'Engineering momentum and hiring activity are both high. This is a good window to apply.', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
       : score >= 41
-        ? { emoji: '⚡', label: 'Moderate Signal', message: 'Some positive indicators. Apply with a tailored pitch that speaks to their current growth phase.', color: '#d97706', bg: '#fffbeb', border: '#fde68a' }
-        : { emoji: '⚠️', label: 'Weak Signal', message: 'Limited activity across signals. Research more before committing time to an application.', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' };
+        ? { label: 'Moderate Signal', message: 'Some positive indicators. Apply with a tailored pitch that speaks to their current growth phase.', color: '#d97706', bg: '#fffbeb', border: '#fde68a' }
+        : { label: 'Weak Signal', message: 'Limited activity across signals. Research more before committing time to an application.', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' };
 
   return (
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '16px',
-      padding: '16px 20px',
+      justifyContent: 'space-between',
+      gap: '24px',
+      padding: '18px 24px',
       background: cfg.bg,
       border: `1px solid ${cfg.border}`,
       borderLeft: `4px solid ${cfg.color}`,
       borderRadius: '0 8px 8px 0',
       flexWrap: 'wrap',
     }}>
-      <span style={{ fontSize: '17px', flexShrink: 0 }}>{cfg.emoji}</span>
-      <span style={{ color: cfg.color, fontWeight: 700, fontSize: '15px', whiteSpace: 'nowrap' }}>{cfg.label}</span>
-      <span style={{ color: MUTED, fontSize: '13px', flex: 1, minWidth: '160px' }}>{cfg.message}</span>
-      <span style={{ color: cfg.color, fontWeight: 800, fontSize: '24px', flexShrink: 0 }}>
-        {score}<span style={{ color: cfg.color, opacity: 0.5, fontSize: '13px' }}>/100</span>
-      </span>
+      <div style={{ flex: 1, minWidth: '200px' }}>
+        <p style={{ color: cfg.color, fontWeight: 700, fontSize: '15px', marginBottom: '3px' }}>{cfg.label}</p>
+        <p style={{ color: MUTED, fontSize: '13px' }}>{cfg.message}</p>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+        <span style={{ color: cfg.color, fontWeight: 800, fontSize: '26px', lineHeight: 1 }}>
+          {score}<span style={{ color: cfg.color, opacity: 0.45, fontSize: '13px' }}>/100</span>
+        </span>
+        <MiniGauge score={score} color={cfg.color} />
+      </div>
     </div>
   );
 }
@@ -158,9 +199,261 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       </div>
       <h2 style={{ color: TEXT, fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>Analysis Failed</h2>
       <p style={{ color: MUTED, fontSize: '14px', maxWidth: '380px', lineHeight: 1.6, marginBottom: '24px' }}>{message}</p>
-      <button onClick={onRetry} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: BLUE, color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+      <button onClick={onRetry} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: TEXT, color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
         <RefreshCw size={14} /> Retry
       </button>
+    </div>
+  );
+}
+
+// ── WatchButton ───────────────────────────────────────────────────────────────
+
+const LS_EMAIL_KEY = 'hs_email';
+
+function WatchButton({ companyName }: { companyName: string }) {
+  const [email, setEmail]           = useState(() => localStorage.getItem(LS_EMAIL_KEY) ?? '');
+  const [showForm, setShowForm]     = useState(false);
+  const [watching, setWatching]     = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg]               = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await addToWatchlist(email.trim(), companyName);
+      localStorage.setItem(LS_EMAIL_KEY, email.trim());
+      setWatching(true);
+      setShowForm(false);
+      setMsg(res.alreadyWatching
+        ? `Already watching ${companyName}`
+        : `Added! You'll get weekly updates at ${email.trim()}`);
+    } catch {
+      setMsg('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (watching || msg) {
+    return (
+      <p style={{ fontFamily: MONO, color: '#16a34a', fontSize: '11px', marginTop: '12px' }}>
+        {msg || `Watching ${companyName} ✓`}
+      </p>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <form onSubmit={(e) => { void submit(e); }} style={{ marginTop: '14px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          required
+          style={{
+            padding: '7px 12px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            fontSize: '13px',
+            color: TEXT,
+            outline: 'none',
+            width: '200px',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{ padding: '7px 14px', background: TEXT, color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          {submitting ? '…' : 'Confirm'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowForm(false)}
+          style={{ padding: '7px 10px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: SUBTLE, cursor: 'pointer' }}
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setShowForm(true)}
+      style={{
+        marginTop: '12px',
+        padding: '6px 14px',
+        background: 'none',
+        border: '1px solid #e2e8f0',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontWeight: 600,
+        color: MUTED,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s, color 0.15s',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BLUE; (e.currentTarget as HTMLButtonElement).style.color = BLUE; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLButtonElement).style.color = MUTED; }}
+    >
+      + Watch
+    </button>
+  );
+}
+
+// ── FitScoreCard ──────────────────────────────────────────────────────────────
+
+function fitPill(pct: number): React.CSSProperties {
+  if (pct >= 80) return { color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0' };
+  if (pct >= 50) return { color: '#d97706', background: '#fffbeb', border: '1px solid #fde68a' };
+  return             { color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca' };
+}
+
+function FitScoreCard({
+  skills,
+  fitScore,
+  loading,
+}: {
+  skills: string[];
+  fitScore: FitScoreResult | null;
+  loading: boolean;
+}) {
+  const sk = { background: '#f1f5f9', borderRadius: '3px' } as React.CSSProperties;
+
+  // No resume: prompt to upload
+  if (!skills.length) {
+    return (
+      <div className="animate-fade-in-up delay-200" style={{ ...CARD, padding: '22px' }}>
+        <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '10px' }}>
+          JOB ROLE FIT
+        </p>
+        <p style={{ color: MUTED, fontSize: '14px', lineHeight: 1.6 }}>
+          Upload your resume on the home page to see personalized job fit scores.
+        </p>
+      </div>
+    );
+  }
+
+  // Loading skeleton
+  if (loading || !fitScore) {
+    return (
+      <div className="animate-fade-in-up delay-200" style={{ ...CARD, padding: '22px' }}>
+        <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '14px' }}>
+          JOB ROLE FIT
+        </p>
+        <div style={{ ...sk, height: '28px', width: '140px', marginBottom: '20px' }} />
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ padding: '14px 0', borderTop: i ? '1px solid #f1f5f9' : 'none', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ ...sk, height: '20px', flex: 1 }} />
+            <div style={{ ...sk, height: '22px', width: '48px', borderRadius: '100px' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!fitScore.jobs.length) {
+    return (
+      <div className="animate-fade-in-up delay-200" style={{ ...CARD, padding: '22px' }}>
+        <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '10px' }}>JOB ROLE FIT</p>
+        <p style={{ color: MUTED, fontSize: '14px' }}>No job listings found to match against. Try again later.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-in-up delay-200" style={{ ...CARD, padding: '22px' }}>
+      <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '8px' }}>
+        JOB ROLE FIT
+      </p>
+
+      {/* Average fit */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+        <span style={{ color: BLUE, fontWeight: 800, fontSize: '2rem', lineHeight: 1 }}>
+          {fitScore.averageFit}%
+        </span>
+        <span style={{ color: SUBTLE, fontSize: '13px' }}>average role fit</span>
+      </div>
+      <p style={{ color: SUBTLE, fontSize: '12px', marginBottom: '20px' }}>
+        Based on your resume matched against {fitScore.jobs.length} live job listing{fitScore.jobs.length !== 1 ? 's' : ''}
+      </p>
+
+      {/* Job rows */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {fitScore.jobs.map((job, i) => (
+          <div
+            key={i}
+            style={{
+              padding: '14px 0',
+              borderTop: i ? '1px solid #f1f5f9' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: TEXT, fontWeight: 600, fontSize: '14px', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {job.title}
+                </p>
+                <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px' }}>{job.company}</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                <span style={{
+                  ...fitPill(job.matchPercentage),
+                  fontFamily: MONO,
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: '100px',
+                }}>
+                  {job.matchPercentage}%
+                </span>
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontFamily: MONO, color: BLUE, fontSize: '11px', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                >
+                  View Job →
+                </a>
+              </div>
+            </div>
+
+            {/* Matched skill tags — fall back to [general-match] when min-score applied */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {job.matchedSkills.length > 0
+                ? job.matchedSkills.map((s) => (
+                    <span key={s} style={{
+                      fontFamily: MONO,
+                      fontSize: '10px',
+                      color: BLUE,
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                    }}>
+                      {s.toLowerCase()}
+                    </span>
+                  ))
+                : (
+                  <span style={{
+                    fontFamily: MONO,
+                    fontSize: '10px',
+                    color: SUBTLE,
+                    background: '#f8f9ff',
+                    border: '1px solid #e2e8f0',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                  }}>
+                    general-match
+                  </span>
+                )
+              }
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -169,25 +462,61 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 export default function ResultsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const name = searchParams.get('name') ?? '';
+  const { getToken } = useAuth();
+  const { user }     = useUser();
+  const name   = searchParams.get('name') ?? '';
+  const skills = (searchParams.get('skills') ?? '').split(',').filter(Boolean);
 
-  const [data, setData] = useState<CompanyAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setData]         = useState<CompanyAnalysis | null>(null);
+  const [history, setHistory]   = useState<ScoreHistoryEntry[]>([]);
+  const [fitScore, setFitScore] = useState<FitScoreResult | null>(null);
+  const [fitLoading, setFitLoading] = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!name.trim()) { navigate('/'); return; }
+    if (!name.trim()) { navigate('/dashboard'); return; }
     setLoading(true);
     setError(null);
     setData(null);
+    setFitScore(null);
     try {
-      setData(await analyzeCompany(name));
+      const token = await getToken();
+      // Fetch analysis + history in parallel; fit score fetched separately below
+      const [result, hist] = await Promise.all([
+        analyzeCompany(name, skills.length ? skills : undefined, token),
+        getCompanyHistory(name),
+      ]);
+      setData(result);
+      setHistory(hist);
+
+      // Persist to per-user localStorage history
+      if (user?.id) {
+        saveSearch(user.id, {
+          companyName: result.company.name || name,
+          score:       result.score,
+          githubScore: result.scoreBreakdown.github,
+          jobsScore:   result.scoreBreakdown.jobs,
+          newsScore:   result.scoreBreakdown.news,
+          signal:      result.score >= 71 ? 'Strong' : result.score >= 41 ? 'Moderate' : 'Weak',
+          date:        new Date().toISOString().split('T')[0],
+        });
+      }
+
+      // Fetch fit score in parallel only when resume skills are present
+      if (skills.length) {
+        setFitLoading(true);
+        getFitScore(name, skills)
+          .then(setFitScore)
+          .catch(() => setFitScore({ jobs: [], averageFit: 0 }))
+          .finally(() => setFitLoading(false));
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to analyze company');
     } finally {
       setLoading(false);
     }
-  }, [name, navigate]);
+  }, [name, skills.join(','), navigate, getToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
@@ -204,101 +533,162 @@ export default function ResultsPage() {
           {/* ── Company + Gauge ─────────────────────────────────────────── */}
           <div
             className="animate-fade-in-up"
-            style={{
-              ...CARD,
-              padding: '36px 36px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '48px',
-              flexWrap: 'wrap',
-            }}
+            style={{ ...CARD, padding: '36px', display: 'flex', alignItems: 'center', gap: '48px', flexWrap: 'wrap' }}
           >
             <div style={{ flex: 1, minWidth: '200px' }}>
-              <p style={{ color: SUBTLE, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-                HireSignal Analysis
-              </p>
-              <h1 style={{ color: TEXT, fontSize: 'clamp(1.7rem, 3.5vw, 2.4rem)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px', lineHeight: 1.1 }}>
-                {data.company.name || name}
+              {/* Monospace analyzing tag */}
+              <span style={{
+                fontFamily: MONO,
+                fontSize: '11px',
+                color: SUBTLE,
+                background: '#f1f5f9',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                display: 'inline-block',
+                marginBottom: '12px',
+                letterSpacing: '-0.01em',
+              }}>
+                [ analyzing: {name.toLowerCase()} ]
+              </span>
+
+              <h1 style={{ color: TEXT, fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px', lineHeight: 1.1 }}>
+                {capitalize(data.company.name || name)}
               </h1>
-              <p style={{ color: MUTED, fontSize: '13px', marginBottom: '20px' }}>
+              <p style={{ color: MUTED, fontSize: '13px' }}>
                 Scored across GitHub activity, job postings, and news coverage
               </p>
-              {/* Inline score chips */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {[
-                  { label: 'GitHub', val: data.scoreBreakdown.github, color: BLUE },
-                  { label: 'Jobs',   val: data.scoreBreakdown.jobs,   color: '#10b981' },
-                  { label: 'News',   val: data.scoreBreakdown.news,   color: '#7c3aed' },
-                ].map(chip => (
-                  <span key={chip.label} style={{
-                    padding: '4px 12px',
-                    background: `${chip.color}0d`,
-                    border: `1px solid ${chip.color}30`,
-                    borderRadius: '20px',
-                    color: chip.color,
-                    fontSize: '12px',
-                    fontWeight: 600,
-                  }}>
-                    {chip.label}: {chip.val}
-                  </span>
-                ))}
-              </div>
+
+              {/* Back link */}
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '16px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: SUBTLE, fontSize: '12px' }}
+                onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = TEXT)}
+                onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = SUBTLE)}
+              >
+                <ArrowLeft size={12} /> Search again
+              </button>
+
+              {/* Watch button */}
+              <WatchButton companyName={data.company.name || name} />
             </div>
             <div style={{ flexShrink: 0 }}>
               <ScoreGauge score={data.score} size={180} />
             </div>
           </div>
 
+          {/* ── Skills relevance banner (only when resume was uploaded) ── */}
+          {(skills.length > 0 || data.relevanceNote) && (
+            <div
+              className="animate-fade-in-up delay-100"
+              style={{
+                padding: '12px 18px',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderLeft: `3px solid ${BLUE}`,
+                borderRadius: '0 8px 8px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontFamily: MONO, color: BLUE, fontSize: '10px', letterSpacing: '0.08em', flexShrink: 0 }}>
+                PROFILE MATCH
+              </span>
+              <span style={{ color: MUTED, fontSize: '13px', flex: 1 }}>
+                Showing jobs relevant to your profile:{' '}
+                <strong style={{ color: TEXT }}>
+                  {skills.slice(0, 3).join(' · ')}
+                </strong>
+              </span>
+            </div>
+          )}
+
           {/* ── Score Breakdown ─────────────────────────────────────────── */}
           <div
-            className="animate-fade-in-up delay-100"
+            className="animate-fade-in-up delay-200"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}
           >
-            <ScoreCard icon={GitBranch} label="GitHub Score"
+            <ScoreCard label="GitHub Score"
               score={data.scoreBreakdown.github}
-              metric={`${data.github.commits30d.toLocaleString()} commits / 30d`}
+              metric={`${data.github.commits30d.toLocaleString()} commits`}
               accent={BLUE} />
-            <ScoreCard icon={Briefcase} label="Jobs Score"
+            <ScoreCard label="Jobs Score"
               score={data.scoreBreakdown.jobs}
-              metric={`${data.jobs.jobs30d.toLocaleString()} postings / 30d`}
+              metric={
+                data.relevanceNote
+                  ? `${data.jobs.jobs30d.toLocaleString()} relevant postings`
+                  : `${data.jobs.jobs30d.toLocaleString()} postings`
+              }
               accent="#10b981" />
-            <ScoreCard icon={Newspaper} label="News Score"
+            <ScoreCard label="News Score"
               score={data.scoreBreakdown.news}
-              metric={`${data.news.length} recent article${data.news.length !== 1 ? 's' : ''}`}
+              metric={`${data.news.length} article${data.news.length !== 1 ? 's' : ''}`}
               accent="#7c3aed" />
+          </div>
+
+          {/* ── Job Role Fit ────────────────────────────────────────────── */}
+          <FitScoreCard
+            skills={skills}
+            fitScore={fitScore}
+            loading={fitLoading}
+          />
+
+          {/* ── Score History ───────────────────────────────────────────── */}
+          <div className="animate-fade-in-up delay-300" style={{ ...CARD, padding: '22px' }}>
+            <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '6px' }}>
+              SCORE TREND / LAST 30 SEARCHES
+            </p>
+            {history.length >= 2 ? (
+              <ScoreHistoryChart history={history} />
+            ) : (
+              <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                <p style={{ color: MUTED, fontSize: '14px', marginBottom: '4px' }}>
+                  Score history builds over time.
+                </p>
+                <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '11px' }}>
+                  Check back tomorrow to see this company's trend.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ── Charts ──────────────────────────────────────────────────── */}
           <div
-            className="animate-fade-in-up delay-200"
+            className="animate-fade-in-up delay-400"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}
           >
-            <ChartCard title="Job Posting Trend" subtitle="Cumulative postings mentioning this company">
+            <ChartCard title="Job Posting Trend / 90 Days" subtitle="Cumulative postings mentioning this company">
               <JobsChart jobs={data.jobs} />
             </ChartCard>
-            <ChartCard title="GitHub Commit Activity" subtitle="Cumulative commits across org repositories">
+            <ChartCard title="GitHub Commit Activity / 90 Days" subtitle="Cumulative commits across org repositories">
               <GitHubChart github={data.github} />
             </ChartCard>
           </div>
 
           {/* ── AI Insight ──────────────────────────────────────────────── */}
-          <div className="animate-fade-in-up delay-300" style={{ ...CARD, padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={14} color="#7c3aed" />
-              </div>
-              <div>
-                <p style={{ color: TEXT, fontWeight: 600, fontSize: '14px', lineHeight: 1 }}>AI Insight</p>
-                <p style={{ color: SUBTLE, fontSize: '11px' }}>Groq · llama-3.1-8b-instant</p>
-              </div>
+          <div
+            className="animate-fade-in-up delay-500"
+            style={{
+              ...CARD,
+              padding: '24px',
+              background: '#f8faff',
+              borderLeft: `3px solid ${BLUE}`,
+              borderRadius: '0 12px 12px 0',
+            }}
+          >
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ color: TEXT, fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>AI Insight</p>
+              <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '-0.01em' }}>Groq · llama-3.1-8b-instant</p>
             </div>
+            <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '10px' }}>
+              AI ANALYSIS
+            </p>
             <p style={{
               color: MUTED,
               fontSize: '15px',
               lineHeight: 1.75,
               fontStyle: 'italic',
-              borderLeft: '3px solid #e9d5ff',
-              paddingLeft: '16px',
             }}>
               {data.summary}
             </p>
@@ -306,41 +696,38 @@ export default function ResultsPage() {
 
           {/* ── News Feed ───────────────────────────────────────────────── */}
           {data.news.length > 0 && (
-            <div className="animate-fade-in-up delay-400">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <Newspaper size={14} color={SUBTLE} />
-                <p style={{ color: TEXT, fontWeight: 600, fontSize: '14px' }}>Recent News</p>
-                <span style={{ color: SUBTLE, fontSize: '12px' }}>— {data.news.length} articles</span>
-              </div>
+            <div className="animate-fade-in-up delay-600">
+              <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '10px', letterSpacing: '0.1em', marginBottom: '14px' }}>
+                SOURCE INTELLIGENCE
+              </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {data.news.map((article, i) => (
-                  <NewsRow key={i} article={article} />
+                  <NewsRow key={i} article={article} index={i} />
                 ))}
               </div>
             </div>
           )}
 
           {data.news.length === 0 && (
-            <div className="animate-fade-in-up delay-400" style={{ ...CARD, padding: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Newspaper size={15} color="#cbd5e1" />
-              <p style={{ color: SUBTLE, fontSize: '14px' }}>No recent news articles found for this company.</p>
+            <div className="animate-fade-in-up delay-600" style={{ ...CARD, padding: '20px' }}>
+              <p style={{ fontFamily: MONO, color: SUBTLE, fontSize: '11px' }}>no recent articles found</p>
             </div>
           )}
 
           {/* ── Verdict ─────────────────────────────────────────────────── */}
-          <div className="animate-fade-in-up delay-500">
+          <div className="animate-fade-in-up delay-600" style={{ marginTop: '4px' }}>
             <VerdictBar score={data.score} />
           </div>
 
-          {/* ── Score detail footer ─────────────────────────────────────── */}
+          {/* ── Score weight footnote ────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', paddingTop: '8px', borderTop: BORDER }}>
             {([
-              ['Jobs (40%)', data.scoreBreakdown.jobs, scoreColor(data.score)],
-              ['GitHub (35%)', data.scoreBreakdown.github, BLUE],
-              ['News (25%)', data.scoreBreakdown.news, '#7c3aed'],
+              ['jobs (40%)', data.scoreBreakdown.jobs, scoreColor(data.score)],
+              ['github (35%)', data.scoreBreakdown.github, BLUE],
+              ['news (25%)', data.scoreBreakdown.news, '#7c3aed'],
             ] as [string, number, string][]).map(([label, val, color]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                <span style={{ color: SUBTLE, fontSize: '12px' }}>{label}:</span>
+                <span style={{ fontFamily: MONO, color: SUBTLE, fontSize: '11px' }}>{label}:</span>
                 <span style={{ color, fontWeight: 700, fontSize: '14px' }}>{val}</span>
               </div>
             ))}
