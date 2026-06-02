@@ -211,8 +211,6 @@ export default function DashboardPage() {
   ];
 
   // ── Color constants ──────────────────────────────────────────
-  // LEFT panel: deep dark teal (the main content side)
-  const LEFT_BG = '#0c2e3a';
   // RIGHT panel: significantly lighter blue-grey (the search/AI side)
   const RIGHT_BG = '#8fb8c8';
   // Cards inside left panel: slightly lighter than left bg
@@ -225,14 +223,6 @@ export default function DashboardPage() {
     border: CARD_BORDER,
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
-    borderRadius: 12,
-    padding: 20,
-  };
-
-  // Right-panel cards are white/near-white
-  const rightCard: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.72)',
-    border: '1px solid rgba(255,255,255,0.5)',
     borderRadius: 12,
     padding: 20,
   };
